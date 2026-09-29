@@ -99,11 +99,12 @@ export default function Page({
         data = await axios.post(`${apiURL}/getStockQuote`, {
           symbol: btoa(decodeURIComponent(symbolValue)),
         });
-        setLoading(false);
       } catch (err) {
         console.error(err);
+      } finally {
+        setLoading(false);
       }
-      setStockData(data?.data.stockQuote);
+      setStockData(data?.data?.stockQuote || stockData);
       return data?.data;
     }
     async function getTopMoverData() {
@@ -115,8 +116,10 @@ export default function Page({
       } catch (err) {
         console.error(err);
       }
-      setTopMovers(data?.data);
-      return data?.data.stockQuote;
+      if (data?.data) {
+        setTopMovers(data.data);
+      }
+      return data?.data?.stockQuote;
     }
     getStockData();
     getTopMoverData();

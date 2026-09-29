@@ -20,11 +20,13 @@ export default function Orderbook(props: any) {
       } catch (err) {
         console.error(err);
       }
-      setSellOrdersData(data?.data.orderData.sellBook);
-      setBuyOrdersData(data?.data.orderData.buyBook);
-      const ts = data?.data.orderData.tsInMillis;
-      if (ts && ts > 0) {
-        setTime(moment(ts * 1000).format("DD MMM YYYY, h:mm A"));
+      if (data?.data?.orderData) {
+        setSellOrdersData(data.data.orderData.sellBook || []);
+        setBuyOrdersData(data.data.orderData.buyBook || []);
+        const ts = data.data.orderData.tsInMillis;
+        if (ts && ts > 0) {
+          setTime(moment(ts * 1000).format("DD MMM YYYY, h:mm A"));
+        }
       }
     }
     getOrderBookData();

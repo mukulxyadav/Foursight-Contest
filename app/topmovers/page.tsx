@@ -17,7 +17,9 @@ export default function TopMovers() {
     async function getTopMoverData() {
       try {
         const data = await axios.post(`${apiURL}/topmovers`, { size: 10 });
-        setTopMovers(data?.data);
+        if (data?.data) {
+          setTopMovers(data.data);
+        }
       } catch (err) {
         console.error(err);
       } finally {

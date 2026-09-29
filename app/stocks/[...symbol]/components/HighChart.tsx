@@ -35,10 +35,12 @@ export default function HighChart(props: any) {
       } finally {
         setLoading(false);
       }
-      setDailyCandlesData(data?.data.dailyCandles.data.candles);
-      setWeeklyCandlesData(data?.data.weeklyCandles.data.candles);
-      setMonthlyCandlesData(data?.data.monthlyCandles.data.candles);
-      setYearlyCandlesData(data?.data.yearlyCandles.data.candles);
+      if (data?.data) {
+        setDailyCandlesData(data.data.dailyCandles?.data?.candles ?? []);
+        setWeeklyCandlesData(data.data.weeklyCandles?.data?.candles ?? []);
+        setMonthlyCandlesData(data.data.monthlyCandles?.data?.candles ?? []);
+        setYearlyCandlesData(data.data.yearlyCandles?.data?.candles ?? []);
+      }
     }
     getDailyCandlesData();
   }, [symbol]);

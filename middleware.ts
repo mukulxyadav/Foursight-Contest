@@ -1,5 +1,5 @@
 import type { NextRequest } from "next/server";
-import axios from "axios";
+
 import { apiURL } from "./app/components/apiURL";
 export async function middleware(request: NextRequest) {
   if (
@@ -12,17 +12,16 @@ export async function middleware(request: NextRequest) {
     let token = request.cookies.get("token")?.value;
 
     try {
-      results = await axios({
-        method: "post",
-        url: apiURL + "/auth/verifyToken",
+      const response = await fetch(apiURL + "/auth/verifyToken", {
+        method: "POST",
         headers: { Authorization: "Bearer " + token },
       });
+      if (response.status === 200) {
+        currentUser = true;
+      } else {
+        currentUser = false;
+      }
     } catch (err: any) {
-      results = err.response;
-    }
-    if (results?.status === 200) {
-      currentUser = true;
-    } else {
       currentUser = false;
     }
 

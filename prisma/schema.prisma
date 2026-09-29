@@ -1,0 +1,201 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+// ─── Contest ─────────────────────────────────────────────────────────────────
+
+model Contest {
+  id          String   @id @default(cuid())
+  name        String
+  description String   @default("")
+  slug        String   @unique // e.g. "srm-2026"
+
+  // Status state machine
+  // REGISTRATION_OPEN | REGISTRATION_CLOSED | UPCOMING | LIVE | PAUSED | ENDED | CANCELLED
+  status      String   @default("REGISTRATION_OPEN")
+
+  // Dates
+  registrationStart DateTime
+  registrationEnd   DateTime
+  contestStart      DateTime
+  contestEnd        DateTime
+
+  // Capital & Rules (stored as JSON string for SQLite compatibility)
+  startingCapital   Float    @default(1000000) // ₹10,00,000
+  transactionFee    Float    @default(0.0005)  // 0.05%
+  maxOrderQty       Int      @default(10000)
+  maxPositionValue  Float    @default(500000)  // ₹5,00,000
+  maxTrades         Int      @default(1000)
+  allowShortSelling Boolean  @default(false)
+  allowMarketOrders Boolean  @default(true)
+  allowLimitOrders  Boolean  @default(false)
+  enforceMarketHours Boolean @default(true)
+
+  // Leaderboard
+  leaderboardVisible Boolean @default(true)
+  leaderboardFrozen  Boolean @default(false)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // Relations
+  participants  ContestParticipant[]
+  announcements ContestAnnouncement[]
+  auditLogs     ContestAuditLog[]
+}
+
+// ─── Participant ──────────────────────────────────────────────────────────────
+
+model ContestParticipant {
+  id           String  @id @default(cuid())
+  contestId    String
+  contest      Contest @relation(fields: [contestId], references: [id])
+
+  // Foursight identity (from JWT token)
+  foursightUsername String // username from the JWT cookie
+
+  // Generated participant ID (e.g. TRD0001)
+  participantId String
+
+  // Registration data
+  fullName    String
+  regNumber   String   // University registration number
+  uniEmail    String   // University email
+  personalEmail String
+  phone       String
+  college     String
+  department  String
+  yearOfStudy String
+  section     String   @default("")
+  teamName    String   @default("")
+  experience  String   @default("") // Trading experience level
+
+  // Status: PENDING | APPROVED | REJECTED | SUSPENDED
+  status      String   @default("PENDING")
+
+  // Contest wallet
+  startingCapital Float
+  cashBalance     Float
+  capitalAllocated Boolean @default(false) // true once virtual money is given
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // Relations
+  positions ContestPosition[]
+  orders    ContestOrder[]
+
+  @@unique([contestId, foursightUsername])
+  @@unique([contestId, participantId])
+  @@index([contestId])
+  @@index([foursightUsername])
+}
+
+// ─── Position ─────────────────────────────────────────────────────────────────
+
+model ContestPosition {
+  id            String @id @default(cuid())
+  contestId     String
+  participantId String // ContestParticipant.id
+  participant   ContestParticipant @relation(fields: [participantId], references: [id])
+
+  symbol        String
+  quantity      Int    @default(0)
+  avgBuyPrice   Float  @default(0)
+  totalInvested Float  @default(0)
+
+  updatedAt DateTime @updatedAt
+
+  @@unique([contestId, participantId, symbol])
+  @@index([contestId, participantId])
+  @@index([symbol])
+}
+
+// ─── Order ────────────────────────────────────────────────────────────────────
+
+model ContestOrder {
+  id            String @id @default(cuid())
+  orderId       String @unique // Public order ID e.g. ORD-20260101-ABCD1234
+
+  contestId     String
+  participantId String // ContestParticipant.id
+  participant   ContestParticipant @relation(fields: [participantId], references: [id])
+
+  symbol        String
+  orderType     String // BUY | SELL
+  quantity      Int
+  price         Float  // Server-fetched execution price
+  totalValue    Float  // quantity × price
+  fee           Float  // transaction fee charged
+  netAmount     Float  // totalValue + fee (for buy) or totalValue - fee (for sell)
+
+  // Status: EXECUTED | REJECTED | FAILED
+  status        String @default("EXECUTED")
+  failReason    String @default("")
+
+  executedAt    DateTime @default(now())
+
+  @@index([contestId])
+  @@index([participantId])
+  @@index([contestId, participantId])
+  @@index([symbol])
+  @@index([executedAt])
+}
+
+// ─── Announcement ─────────────────────────────────────────────────────────────
+
+model ContestAnnouncement {
+  id        String  @id @default(cuid())
+  contestId String
+  contest   Contest @relation(fields: [contestId], references: [id])
+
+  title     String
+  message   String
+  // Priority: INFO | WARNING | IMPORTANT
+  priority  String  @default("INFO")
+
+  createdAt DateTime @default(now())
+
+  @@index([contestId])
+}
+
+// ─── Audit Log ────────────────────────────────────────────────────────────────
+
+model ContestAuditLog {
+  id             String  @id @default(cuid())
+  contestId      String
+  contest        Contest @relation(fields: [contestId], references: [id])
+
+  foursightUsername String
+  participantId     String
+  action            String  // ORDER_BUY | ORDER_SELL | REGISTER | JOIN | ADMIN_*
+  symbol            String  @default("")
+  quantity          Int     @default(0)
+  price             Float   @default(0)
+  status            String  // SUCCESS | FAILED
+  detail            String  @default("")
+  ipAddress         String  @default("")
+
+  createdAt DateTime @default(now())
+
+  @@index([contestId])
+  @@index([foursightUsername])
+  @@index([createdAt])
+}
+
+// ─── Admin Session ────────────────────────────────────────────────────────────
+
+model AdminSession {
+  id        String   @id @default(cuid())
+  token     String   @unique
+  createdAt DateTime @default(now())
+  expiresAt DateTime
+}
